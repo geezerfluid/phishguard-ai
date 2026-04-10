@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PhishGuard AI — Multi-Modal Scam Detection</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #070b14;
+  font-family: 'Space Grotesk', sans-serif;
+  color: #e2e8f0;
+  min-height: 100vh;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(99,102,241,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,102,241,.03) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+.card {
+  background: #0d1120;
+  border: 1px solid #1b2237;
+  border-radius: 14px;
+  transition: border-color .2s;
+}
+.card:hover { border-color: #2a3557; }
+.tab-btn {
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  transition: all .2s;
+}
+.tab-btn:hover { color: #94a3b8; }
+.tab-btn.active { color: #818cf8; border-bottom-color: #6366f1; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+.msg-input {
+  width: 100%;
+  background: #060910;
+  border: 1px solid #1b2237;
+  border-radius: 10px;
+  padding: 14px;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-family: 'Space Grotesk', sans-serif;
+  resize: none;
+  height: 110px;
+  outline: none;
+  transition: border-color .2s;
+}
+.msg-input:focus { border-color: #6366f1; }
+.upload-zone {
+  border: 2px dashed #1b2237;
+  border-radius: 10px;
+  padding: 30px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  color: #475569;
+  font-size: 13px;
+}
+.upload-zone:hover { border-color: #6366f1; background: rgba(99,102,241,.04); color: #818cf8; }
+.upload-zone.ready { border-color: #4ade80; background: rgba(74,222,128,.04); color: #4ade80; }
+.analyze-btn {
+  width: 100%;
+  padding: 13px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Space Grotesk', sans-serif;
+  cursor: pointer;
+  margin-top: 14px;
+  transition: opacity .2s, transform .1s;
+}
+.analyze-btn:hover { opacity: .88; }
+.analyze-btn:active { transform: scale(.98); }
+.analyze-btn:disabled { opacity: .4; cursor: not-allowed; }
+.result-panel { display: none; }
+.result-panel.visible { display: block; animation: slideUp .35s ease; }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+.badge-high   { background: #2d0a0a; color: #f87171; border: 1px solid #f8717133; }
+.badge-medium { background: #1c1006; color: #fb923c; border: 1px solid #fb923c33; }
+.badge-low    { background: #061a0e; color: #4ade80; border: 1px solid #4ade8033; }
+.proc-step {
+  background: #111827;
+  border: 1px solid #1b2237;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: #64748b;
+  transition: all .3s;
+}
+.proc-step.active {
+  background: #1e1b4b;
+  border-color: #6366f1;
+  color: #a78bfa;
+  box-shadow: 0 0 10px rgba(99,102,241,.2);
+}
+.donut-ring { transition: stroke-dasharray .7s ease, stroke .4s; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.tag-phish { background: #2d0a3a; color: #c084fc; }
+.tag-deep  { background: #1c1006; color: #fb923c; }
+.tag-safe  { background: #061a0e; color: #4ade80; }
+.nav-item {
+  padding: 0 14px; height: 52px; display: flex; align-items: center;
+  font-size: 13px; color: #64748b; cursor: pointer;
+  border-bottom: 2px solid transparent; transition: all .15s;
+}
+.nav-item:hover { color: #94a3b8; }
+.nav-item.active { color: #818cf8; border-bottom-color: #6366f1; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin .7s linear infinite; display: inline-block; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: #1b2237; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav style="background:#090d1a;border-bottom:1px solid #1b2237;position:sticky;top:0;z-index:100">
+  <div style="max-width:1280px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:30px;height:30px;background:#4f46e5;border-radius:8px;display:flex;align-items:center;justify-content:center">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1.5L2.5 4.5V9c0 3 2.3 5.8 5.5 6.5C11.2 14.8 13.5 12 13.5 9V4.5L8 1.5z" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M5.5 8.5l2 2 3-3.5" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span style="font-weight:700;font-size:15px;color:#f1f5f9">PhishGuard <span style="color:#22d3ee">AI</span></span>
+    </div>
+    <div style="display:flex">
+      <div class="nav-item active">Dashboard</div>
+      <div class="nav-item">Reports</div>
+      <div class="nav-item">History</div>
+      <div class="nav-item">Settings</div>
+    </div>
+    <div style="width:32px;height:32px;background:#1b2237;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#818cf8">PG</div>
+  </div>
+</nav>
+
+<!-- MAIN GRID -->
+<div style="max-width:1280px;margin:0 auto;padding:20px 24px;position:relative;z-index:1;display:grid;grid-template-columns:1fr 290px;gap:18px">
+
+  <!-- LEFT -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <!-- INPUT CARD -->
+    <div class="card" style="padding:24px">
+      <h1 style="font-size:22px;font-weight:700;color:#f1f5f9;margin-bottom:4px">
+        Detect the Fake. <span style="color:#22d3ee">Protect the Real.</span>
+      </h1>
+      <p style="font-size:12px;color:#475569;margin-bottom:20px">Multi-modal AI scam detection — text · voice · image · video</p>
+
+      <!-- Tabs -->
+      <div style="display:flex;border-bottom:1px solid #1b2237;margin-bottom:18px">
+        <button class="tab-btn active" onclick="switchTab('text')">Text / SMS</button>
+        <button class="tab-btn" onclick="switchTab('voice')">Voice</button>
+        <button class="tab-btn" onclick="switchTab('image')">Image</button>
+        <button class="tab-btn" onclick="switchTab('video')">Video</button>
+      </div>
+
+      <!-- TEXT -->
+      <div id="panel-text" class="tab-panel active">
+        <textarea class="msg-input" id="text-input"
+          placeholder="Paste a suspicious SMS, email or message here…&#10;&#10;e.g. Dear customer, your SBI account is BLOCKED. Verify KYC at http://sbi-kyc.xyz or lose access in 24 hours."></textarea>
+      </div>
+
+      <!-- VOICE -->
+      <div id="panel-voice" class="tab-panel">
+        <input type="file" id="voice-file" accept=".wav,.mp3,.ogg,.flac,.m4a" style="display:none" onchange="fileSelected('voice')"/>
+        <div class="upload-zone" id="zone-voice" onclick="document.getElementById('voice-file').click()">
+          <div style="font-size:26px;margin-bottom:8px">🎙️</div>
+          <div style="font-weight:600;color:#94a3b8;margin-bottom:4px">Upload audio file</div>
+          <div>Supports .wav .mp3 .ogg .flac .m4a</div>
+          <div style="margin-top:6px;font-size:11px;color:#334155">AI-generated voice will be flagged as phishing</div>
+        </div>
+      </div>
+
+      <!-- IMAGE -->
+      <div id="panel-image" class="tab-panel">
+        <input type="file" id="image-file" accept=".png,.jpg,.jpeg,.webp,.bmp" style="display:none" onchange="fileSelected('image')"/>
+        <div class="upload-zone" id="zone-image" onclick="document.getElementById('image-file').click()">
+          <div style="font-size:26px;margin-bottom:8px">🖼️</div>
+          <div style="font-weight:600;color:#94a3b8;margin-bottom:4px">Upload screenshot or image</div>
+          <div>Supports .png .jpg .jpeg .webp</div>
+          <div style="margin-top:6px;font-size:11px;color:#334155">Phishing website screenshots will be detected</div>
+        </div>
+      </div>
+
+      <!-- VIDEO -->
+      <div id="panel-video" class="tab-panel">
+        <input type="file" id="video-file" accept=".mp4,.avi,.mov,.mkv" style="display:none" onchange="fileSelected('video')"/>
+        <div class="upload-zone" id="zone-video" onclick="document.getElementById('video-file').click()">
+          <div style="font-size:26px;margin-bottom:8px">🎬</div>
+          <div style="font-weight:600;color:#94a3b8;margin-bottom:4px">Upload video file</div>
+          <div>Supports .mp4 .avi .mov .mkv</div>
+          <div style="margin-top:6px;font-size:11px;color:#334155">Frames are sampled and analyzed for phishing</div>
+        </div>
+      </div>
+
+      <button class="analyze-btn" id="analyze-btn" onclick="runAnalysis()">
+        <span id="btn-text">Analyze Now</span>
+      </button>
+    </div>
+
+    <!-- STATUS + RESULT ROW -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <!-- Status -->
+      <div class="card" style="padding:20px">
+        <div style="font-size:10px;font-weight:600;color:#475569;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">Status · Confidence</div>
+        <div id="status-label" style="font-size:24px;font-weight:700;color:#475569;margin-bottom:12px">Ready</div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <svg width="72" height="72" viewBox="0 0 72 72">
+            <circle cx="36" cy="36" r="26" fill="none" stroke="#111827" stroke-width="10"/>
+            <circle id="donut-arc" cx="36" cy="36" r="26" fill="none" stroke="#1b2237"
+              stroke-width="10" stroke-dasharray="0 163" stroke-dashoffset="41"
+              stroke-linecap="round" class="donut-ring"/>
+          </svg>
+          <div>
+            <div id="conf-pct" style="font-size:22px;font-weight:700;color:#f1f5f9">—</div>
+            <div style="font-size:11px;color:#475569;margin-top:3px">confidence</div>
+            <div id="threat-badge" style="margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result detail -->
+      <div class="card" style="padding:20px">
+        <div style="font-size:10px;font-weight:600;color:#475569;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">Analysis Detail</div>
+        <div id="result-placeholder" style="color:#334155;font-size:13px;padding-top:8px;line-height:1.6">
+          Submit a message or file to see the detailed analysis result here.
+        </div>
+        <div id="result-detail" class="result-panel">
+          <div id="result-type" style="font-size:13px;margin-bottom:10px"></div>
+          <div style="border-top:1px solid #1b2237;margin-bottom:10px"></div>
+          <div id="result-explanation" style="font-size:12px;color:#94a3b8;line-height:1.7"></div>
+          <div id="result-extra" style="margin-top:10px;font-size:11px;font-family:'JetBrains Mono',monospace;color:#475569;line-height:1.6"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- METRICS -->
+    <div class="card" style="padding:20px">
+      <div style="font-size:10px;font-weight:600;color:#475569;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">Model Performance — Real Dataset Evaluation</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+        <div style="background:#060910;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:#818cf8">88.0%</div>
+          <div style="font-size:10px;color:#475569;margin-top:2px">Text Accuracy</div>
+          <div style="font-size:10px;color:#334155;margin-top:2px">F1: 89.3%</div>
+          <svg viewBox="0 0 80 28" style="height:28px;width:100%;margin-top:6px"><polyline fill="none" stroke="#818cf8" stroke-width="1.5" points="0,22 15,16 30,18 45,8 60,12 75,5"/></svg>
+        </div>
+        <div style="background:#060910;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:#22d3ee">76.9%</div>
+          <div style="font-size:10px;color:#475569;margin-top:2px">Voice Accuracy</div>
+          <div style="font-size:10px;color:#334155;margin-top:2px">F1: 85.7%</div>
+          <svg viewBox="0 0 80 28" style="height:28px;width:100%;margin-top:6px"><polyline fill="none" stroke="#22d3ee" stroke-width="1.5" points="0,24 15,18 30,20 45,10 60,14 75,7"/></svg>
+        </div>
+        <div style="background:#060910;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:#fb923c">80.0%</div>
+          <div style="font-size:10px;color:#475569;margin-top:2px">Image Accuracy</div>
+          <div style="font-size:10px;color:#334155;margin-top:2px">F1: 81.0%</div>
+          <svg viewBox="0 0 80 28" style="height:28px;width:100%;margin-top:6px"><polyline fill="none" stroke="#fb923c" stroke-width="1.5" points="0,20 15,14 30,16 45,6 60,10 75,3"/></svg>
+        </div>
+        <div style="background:#060910;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:#4ade80">100%</div>
+          <div style="font-size:10px;color:#475569;margin-top:2px">Video Accuracy</div>
+          <div style="font-size:10px;color:#334155;margin-top:2px">F1: 100%</div>
+          <svg viewBox="0 0 80 28" style="height:28px;width:100%;margin-top:6px"><polyline fill="none" stroke="#4ade80" stroke-width="1.5" points="0,18 15,12 30,14 45,4 60,6 75,1"/></svg>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /left -->
+
+  <!-- RIGHT -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <!-- Pipeline -->
+    <div class="card" style="padding:18px">
+      <div style="font-size:10px;font-weight:600;color:#475569;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px">Processing Pipeline</div>
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:12px">
+        <div class="proc-step" id="step-0">Input</div>
+        <span style="color:#4f46e5;font-size:11px">→</span>
+        <div class="proc-step" id="step-1">Preprocess</div>
+        <span style="color:#4f46e5;font-size:11px">→</span>
+        <div class="proc-step" id="step-2">ML Model</div>
+        <span style="color:#4f46e5;font-size:11px">→</span>
+        <div class="proc-step" id="step-3">Fusion</div>
+        <span style="color:#4f46e5;font-size:11px">→</span>
+        <div class="proc-step" id="step-4">Output</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+        <div style="background:#060910;border-radius:7px;padding:8px;text-align:center;font-size:10px;color:#64748b">
+          <div style="font-size:16px;margin-bottom:3px">📝</div>NLP
+        </div>
+        <div style="background:#060910;border-radius:7px;padding:8px;text-align:center;font-size:10px;color:#64748b">
+          <div style="font-size:16px;margin-bottom:3px">🎙️</div>Audio
+        </div>
+        <div style="background:#060910;border-radius:7px;padding:8px;text-align:center;font-size:10px;color:#64748b">
+          <div style="font-size:16px;margin-bottom:3px">👁️</div>Vision
+        </div>
+        <div style="background:#060910;border-radius:7px;padding:8px;text-align:center;font-size:10px;color:#64748b">
+          <div style="font-size:16px;margin-bottom:3px">🎬</div>Video
+        </div>
+      </div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="card" style="padding:18px">
+      <div style="font-size:10px;font-weight:600;color:#475569;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px">Alerts</div>
+      <div id="alerts-list">
+        <div style="font-size:12px;color:#334155;padding:4px 0">No alerts. Run an analysis to begin.</div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="card" style="padding:18px">
+      <div style="font-size:10px;font-weight:600;color:#475569;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px">Recent Scans</div>
+      <div id="history-list">
+        <div id="no-history" style="font-size:12px;color:#334155;padding:4px 0">No scans yet.</div>
+      </div>
+    </div>
+
+    <!-- About -->
+    <div class="card" style="padding:18px">
+      <div style="font-size:10px;font-weight:600;color:#475569;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">About</div>
+      <div style="font-size:12px;color:#64748b;line-height:1.7">
+        Final year BTech CSE project. Multi-modal AI system that detects phishing and deepfakes across text, voice, image, and video using TF-IDF, MobileNetV2, and acoustic analysis.
+      </div>
+      <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+        <span style="background:#1b2237;padding:2px 8px;border-radius:4px;font-size:10px;color:#818cf8;font-family:'JetBrains Mono',monospace">TF-IDF</span>
+        <span style="background:#1b2237;padding:2px 8px;border-radius:4px;font-size:10px;color:#22d3ee;font-family:'JetBrains Mono',monospace">MobileNetV2</span>
+        <span style="background:#1b2237;padding:2px 8px;border-radius:4px;font-size:10px;color:#fb923c;font-family:'JetBrains Mono',monospace">librosa</span>
+        <span style="background:#1b2237;padding:2px 8px;border-radius:4px;font-size:10px;color:#4ade80;font-family:'JetBrains Mono',monospace">Flask</span>
+        <span style="background:#1b2237;padding:2px 8px;border-radius:4px;font-size:10px;color:#f472b6;font-family:'JetBrains Mono',monospace">PyTorch</span>
+      </div>
+    </div>
+
+  </div><!-- /right -->
+
+</div><!-- /main grid -->
+
+<script>
+// ─── State ────────────────────────────────────────────────
+let activeTab = 'text';
+let stepTimer = null;
+let idleTimer = null;
+let idleStep  = 0;
+
+// ─── Tab switching ─────────────────────────────────────────
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', ['text','voice','image','video'][i] === tab);
+  });
+  ['text','voice','image','video'].forEach(id => {
+    document.getElementById('panel-' + id).classList.toggle('active', id === tab);
+  });
+}
+
+// ─── File selected ─────────────────────────────────────────
+function fileSelected(type) {
+  const file = document.getElementById(type + '-file').files[0];
+  if (!file) return;
+  const zone = document.getElementById('zone-' + type);
+  zone.classList.add('ready');
+  zone.innerHTML = `
+    <div style="font-size:22px;margin-bottom:6px">✅</div>
+    <div style="font-weight:600">${file.name}</div>
+    <div style="font-size:11px;margin-top:4px">${(file.size/1024).toFixed(1)} KB · ready</div>`;
+}
+
+// ─── Pipeline animation ────────────────────────────────────
+function startPipelineAnim(cb) {
+  clearInterval(stepTimer);
+  clearInterval(idleTimer);
+  let i = 0;
+  const steps = document.querySelectorAll('.proc-step');
+  steps.forEach(s => s.classList.remove('active'));
+  stepTimer = setInterval(() => {
+    steps.forEach(s => s.classList.remove('active'));
+    if (i < steps.length) { steps[i].classList.add('active'); i++; }
+    else {
+      clearInterval(stepTimer);
+      if (cb) cb();
+      startIdleAnim();
+    }
+  }, 380);
+}
+
+function startIdleAnim() {
+  idleStep = 0;
+  clearInterval(idleTimer);
+  idleTimer = setInterval(() => {
+    const steps = document.querySelectorAll('.proc-step');
+    steps.forEach(s => s.classList.remove('active'));
+    steps[idleStep % steps.length].classList.add('active');
+    idleStep++;
+  }, 1400);
+}
+
+// ─── Main analysis ─────────────────────────────────────────
+async function runAnalysis() {
+  const btn     = document.getElementById('analyze-btn');
+  const btnText = document.getElementById('btn-text');
+  btn.disabled  = true;
+  btnText.innerHTML = '<span class="spin">⟳</span> Analyzing…';
+
+  startPipelineAnim();
+
+  try {
+    let result;
+    if (activeTab === 'text')  result = await analyzeText();
+    if (activeTab === 'voice') result = await analyzeFile('/detect-voice', 'voice', 'audio');
+    if (activeTab === 'image') result = await analyzeFile('/detect-image', 'image', 'image');
+    if (activeTab === 'video') result = await analyzeFile('/detect-video', 'video', 'video');
+    if (result) showResult(result, activeTab);
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    btn.disabled = false;
+    btnText.textContent = 'Analyze Now';
+  }
+}
+
+// ─── Text analysis ─────────────────────────────────────────
+async function analyzeText() {
+  const msg = document.getElementById('text-input').value.trim();
+  if (!msg) throw new Error('Please enter a message to analyze.');
+
+  const fd = new FormData();
+  fd.append('text', msg);   // key must be 'text' — matches Flask /detect-text
+
+  const resp = await fetch('/detect-text', { method: 'POST', body: fd });
+  if (!resp.ok) throw new Error('Server error ' + resp.status);
+
+  const data = await resp.json();
+  console.log('API response:', data);   // visible in browser F12 → Console
+
+  // Normalize all possible field names Flask might return
+  const isPhishing =
+    data.prediction === 'phishing' ||
+    data.prediction === 'spam'     ||
+    data.label      === 'phishing' ||
+    data.label      === 'spam'     ||
+    data.is_phishing === true;
+
+  const conf = typeof data.confidence === 'number' ? data.confidence : 0.5;
+
+  const threat =
+    data.threat ||
+    data.threat_level ||
+    (isPhishing && conf >= 0.7 ? 'High' : isPhishing ? 'Medium' : 'Low');
+
+  const keywords = data.keywords && data.keywords.length
+    ? 'Keywords: ' + data.keywords.join(', ')
+    : '';
+
+  return {
+    prediction:  isPhishing ? 'phishing' : 'legitimate',
+    confidence:  conf,
+    threat:      threat,
+    explanation: data.explanation || (isPhishing ? 'Phishing indicators detected.' : 'No phishing patterns found.'),
+    pattern:     data.pattern || data.attack_pattern || keywords
+  };
+}
+
+// ─── File analysis ─────────────────────────────────────────
+async function analyzeFile(endpoint, inputId, fieldName) {
+  const fileEl = document.getElementById(inputId + '-file');
+  if (!fileEl.files.length) throw new Error('Please select a file first.');
+  const fd = new FormData();
+  fd.append(fieldName, fileEl.files[0]);
+  const resp = await fetch(endpoint, { method: 'POST', body: fd });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || 'Server returned error ' + resp.status);
+  }
+  return await resp.json();
+}
+
+// ─── Show result ───────────────────────────────────────────
+function showResult(data, modality) {
+  const pred   = (data.prediction || 'unknown').toLowerCase();
+  const conf   = Math.round((data.confidence || 0.5) * 100);
+  const threat = data.threat || 'Medium';
+  const expl   = data.explanation || 'Analysis complete.';
+
+  const isPhish    = ['phishing','fake','spam','ai'].includes(pred);
+  const isSusp     = pred === 'suspicious';
+  const color      = isPhish ? '#f87171' : isSusp ? '#fb923c' : '#4ade80';
+  const label      = isPhish ? 'Phishing Detected' : isSusp ? 'Suspicious' : 'Legitimate';
+  const badgeClass = threat === 'High' ? 'badge-high' : threat === 'Medium' ? 'badge-medium' : 'badge-low';
+  const tagClass   = isPhish ? 'tag-phish' : isSusp ? 'tag-deep' : 'tag-safe';
+
+  // Status card
+  document.getElementById('status-label').textContent = label;
+  document.getElementById('status-label').style.color = color;
+  document.getElementById('conf-pct').textContent = conf + '%';
+
+  // Donut (circumference ~163)
+  const arc = ((conf / 100) * 163).toFixed(1);
+  const gap = (163 - parseFloat(arc)).toFixed(1);
+  const donut = document.getElementById('donut-arc');
+  donut.setAttribute('stroke-dasharray', `${arc} ${gap}`);
+  donut.setAttribute('stroke', color);
+
+  // Threat badge
+  document.getElementById('threat-badge').innerHTML =
+    `<span class="badge ${badgeClass}">Threat: ${threat}</span>`;
+
+  // Detail card
+  document.getElementById('result-placeholder').style.display = 'none';
+  const detail = document.getElementById('result-detail');
+  detail.classList.add('visible');
+  document.getElementById('result-type').innerHTML =
+    `<span style="color:${color};font-weight:600">${label}</span>
+     &nbsp;·&nbsp;
+     <span style="color:#64748b;font-size:11px;font-family:'JetBrains Mono',monospace">${modality.toUpperCase()}</span>`;
+  document.getElementById('result-explanation').textContent = expl;
+
+  // Extra info
+  let extra = '';
+  if (data.details) {
+    extra = Object.entries(data.details)
+      .map(([k, v]) => `${k.replace(/_/g,' ')}: ${v}`).join('\n');
+  }
+  if (data.frames_analysed !== undefined) {
+    extra = `Frames analysed: ${data.frames_analysed}  ·  Phishing frames: ${data.phishing_frames}`;
+  }
+  if (data.pattern) extra += (extra ? '\n' : '') + `Pattern: ${data.pattern}`;
+  document.getElementById('result-extra').textContent = extra;
+
+  // Alert
+  const alertsList = document.getElementById('alerts-list');
+  if (alertsList.querySelector('div[style*="334155"]')) alertsList.innerHTML = '';
+  const alertEl = document.createElement('div');
+  alertEl.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid #111827;font-size:12px';
+  alertEl.innerHTML = `
+    <div style="width:26px;height:26px;border-radius:6px;background:${color}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:600;color:${color}">
+      ${isPhish ? '!' : isSusp ? '?' : '✓'}
+    </div>
+    <div>
+      <div style="color:#e2e8f0;font-weight:500">${label}</div>
+      <div style="color:#475569;font-size:11px">${modality} · just now</div>
+    </div>`;
+  alertsList.prepend(alertEl);
+
+  // History
+  const noHist = document.getElementById('no-history');
+  if (noHist) noHist.remove();
+  const histList = document.getElementById('history-list');
+  const now  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const histEl = document.createElement('div');
+  histEl.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #111827;font-size:12px';
+  histEl.innerHTML = `
+    <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
+    <div style="flex:1">
+      <div style="color:#e2e8f0">${modality.charAt(0).toUpperCase()+modality.slice(1)} · ${conf}% confidence</div>
+      <div style="color:#475569;font-size:11px">${now}</div>
+    </div>
+    <span class="tag ${tagClass}">${isPhish ? 'Phishing' : isSusp ? 'Suspicious' : 'Safe'}</span>`;
+  histList.prepend(histEl);
+}
+
+// ─── Error ─────────────────────────────────────────────────
+function showError(msg) {
+  document.getElementById('status-label').textContent = 'Error';
+  document.getElementById('status-label').style.color = '#f87171';
+  document.getElementById('conf-pct').textContent = '—';
+  document.getElementById('threat-badge').innerHTML = '';
+  document.getElementById('result-placeholder').style.display = 'none';
+  const detail = document.getElementById('result-detail');
+  detail.classList.add('visible');
+  document.getElementById('result-type').innerHTML = '<span style="color:#f87171;font-weight:600">Analysis Failed</span>';
+  document.getElementById('result-explanation').textContent = msg;
+  document.getElementById('result-extra').textContent = '';
+}
+
+// ─── Start idle animation ──────────────────────────────────
+startIdleAnim();
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+flask
+flask-cors
+torch
+torchvision
+transformers
+librosa
+soundfile
+opencv-python
+Pillow
+scikit-learn
+pandas
+tabulate
+pyspellchecker
+joblib
+numpy
