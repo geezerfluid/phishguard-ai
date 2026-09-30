@@ -1,0 +1,15 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+backend/data/
+*.csv
+*.mp3
+*.ogg
+*.mp4
+*.png
+*.jpg
+*.jpeg
+*.wav
+venv/
+.env

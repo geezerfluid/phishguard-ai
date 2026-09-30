@@ -1,0 +1,11 @@
+flask
+flask-cors
+torch
+torchvision
+librosa
+soundfile
+opencv-python-headless
+Pillow
+scikit-learn
+joblib
+numpy
